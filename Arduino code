@@ -1,0 +1,203 @@
+// Include the libraries
+
+#include <RtcDS3231.h>
+#include <SoftwareSerial.h>
+#include "SSD1306AsciiWire.h"
+#include "WiFiEsp.h"
+#include <Wire.h>
+
+
+
+// Declare and initialise global arrays for WiFi settings
+char ssid[] = "OnePlus3";
+char pass[] = "4372599b36bc";
+
+// Declare and initialise global variables/arrays for Thingspeak connection
+const char server[] = "thingspeak.com";
+const char thingspeakAPIKey[] = "1EM731EP9J75REYD";
+long postingInterval = 30000;
+
+// Create new display object
+SSD1306AsciiWire oled;
+
+
+// Create new RTC module object
+RtcDS3231<TwoWire> rtcModule(Wire);
+
+// Create new client object
+WiFiEspClient client;
+
+
+// Create WiFi module object on GPIO pin 6 (RX) and 7 (TX)
+SoftwareSerial Serial1(6, 7);
+
+// Declare and initialise variable for radio status 
+int status = WL_IDLE_STATUS;
+
+// Declare global variables for time and voltage
+int hours;
+int minutes;
+int seconds;
+int sensorValue = analogRead(A0);
+float voltage = sensorValue * (1.1 / 1023.0);
+
+// Declare global variables/arrays for timing
+int oldMinute;
+char lastSent[20];
+
+void setup() {
+  
+  // Enable I2C communication
+  Wire.begin();         
+
+  // Start display on adress 0x3C
+  oled.begin(&Adafruit128x64, 0x3C);
+  oled.setFont(utf8font10x16);
+  oled.clear();
+  oled.print("Starting");
+  
+  // Initialise serial for debugging
+  Serial.begin(115200);
+
+  
+  // Start RTC module
+  rtcModule.Begin();
+
+  
+
+  //Set internal voltage reference of 1.1V
+  analogReference(INTERNAL);
+ 
+
+  // Add dot to start up animation
+  oled.print(".");
+
+  // Initialise serial for ESP module
+  Serial1.begin(9600);
+  
+  // Initialise ESP module
+  WiFi.init(&Serial1);
+
+  // Add dot to start up animation
+  oled.print(".");
+
+  // Check for the presence of the shield
+  if (WiFi.status() == WL_NO_SHIELD) {
+    Serial.println("WiFi shield not present");
+    // Don't continue
+    while(true);
+  }
+  
+  // Attempt to connect to WiFi network
+  while(status != WL_CONNECTED) {
+    Serial.print("Attempting to connect to SSID: ");
+    Serial.println(ssid);
+    status = WiFi.begin(ssid, pass);
+
+    // Add dot to start up animation
+    oled.print(".");
+  }
+  printWifiStatus();
+  updateVoltage();
+  printOled();
+}
+
+void loop(){
+  updateTime();
+ 
+  
+  // Update channel on Thingspeak (every postingInterval)
+  if(seconds%postingInterval == 0){
+    updateVoltage();
+    sendThingspeak(voltage);
+  } 
+
+  client.flush();
+  client.stop();
+
+}
+
+void sendThingspeak(float value) {
+  if (client.connectSSL(server, 443)) {
+    Serial.println("Connected to server.");
+    client.println("GET /update?api_key=" + String(thingspeakAPIKey) + 
+    "&field1=" + String(value) + " HTTP/1.1");
+    client.println("Host: api.thingspeak.com");
+    client.println("Connection: close");
+    client.println();
+    Serial.println("Sent to server.");
+    Serial.println(voltage);
+    
+    // Save sent time as char-array
+    sprintf(lastSent, "Sent: %02d:%02d:%02d", hours, minutes, seconds);
+    
+    // Update time on display
+    printOled();
+  }
+}
+
+void updateTime() {
+  oldMinute = minutes;
+  RtcDateTime now = rtcModule.GetDateTime();
+
+  // Save time in variables
+  hours = now.Hour();
+  minutes = now.Minute();
+  seconds = now.Second();
+
+  // Update screen on minute update
+  if(minutes != oldMinute) {
+    printOled();
+  } 
+
+ 
+}
+
+
+void printOled() {
+  
+  // Format and print time on display
+  oled.clear();
+  oled.setFont(lcdnums14x24);
+  oled.setCol(20);
+  char timeString[6];
+  sprintf(timeString, "%02d:%02d", hours,minutes);
+  oled.println(timeString);
+
+  // Format and print voltage on display
+  oled.setFont(utf8font10x16);
+  oled.setRow(6);
+  oled.setCol(100);
+  oled.print(int(voltage));
+  oled.write(176);
+
+
+  // Format and print last sent time on display
+  oled.setCol(0);
+  oled.print(lastSent);
+}
+
+
+
+void updateVoltage(){
+  
+// read the input on analog pin 0:
+  int sensorValue = analogRead(A0);
+  // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 1.1V):
+  float voltage = sensorValue * (1.1 / 1023.0);
+  
+  
+  
+}
+
+void printWifiStatus() {
+  
+  // Print the SSID of the network
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+
+  // Print the IP address
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
+}
