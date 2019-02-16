@@ -9,12 +9,12 @@
 
 
 // Declare and initialise global arrays for WiFi settings
-char ssid[] = "OnePlus3";
-char pass[] = "4372599b36bc";
+char ssid[] = "Network name";
+char pass[] = "Password";
 
 // Declare and initialise global variables/arrays for Thingspeak connection
 const char server[] = "thingspeak.com";
-const char thingspeakAPIKey[] = "1EM731EP9J75REYD";
+const char thingspeakAPIKey[] = "Key";
 long postingInterval = 30000;
 
 // Create new display object
