@@ -9,13 +9,13 @@
 
 
 // Declare and initialise global arrays for WiFi settings
-char ssid[] = "Network name";
-char pass[] = "Password";
+char ssid[] = "OnePlus3";
+char pass[] = "4372599b36bc";
 
 // Declare and initialise global variables/arrays for Thingspeak connection
 const char server[] = "thingspeak.com";
-const char thingspeakAPIKey[] = "Key";
-long postingInterval = 30000;
+const char thingspeakAPIKey[] = "1EM731EP9J75REYD";
+const int postingInterval = 60; //Defines (in seconds) how often data is sent to thingspeak
 
 // Create new display object
 SSD1306AsciiWire oled;
@@ -39,7 +39,7 @@ int hours;
 int minutes;
 int seconds;
 int sensorValue = analogRead(A0);
-float voltage = sensorValue * (1.1 / 1023.0);
+float voltage = sensorValue * (1.1 / 1023.0); //The internal reference of 1.1 volt is used in this case. Use the reference that makes most sence for the values you wish to measure.
 
 // Declare global variables/arrays for timing
 int oldMinute;
@@ -121,12 +121,12 @@ void sendThingspeak(float value) {
   if (client.connectSSL(server, 443)) {
     Serial.println("Connected to server.");
     client.println("GET /update?api_key=" + String(thingspeakAPIKey) + 
-    "&field1=" + String(value) + " HTTP/1.1");
+    "&field1=" + String(value,4) + " HTTP/1.1"); // This sends a string representation of the float value to ThingSpeak. The number after value, defines the number of decimal places in the string value sent.
     client.println("Host: api.thingspeak.com");
     client.println("Connection: close");
     client.println();
     Serial.println("Sent to server.");
-    Serial.println(voltage);
+    Serial.println(voltage,4);
     
     // Save sent time as char-array
     sprintf(lastSent, "Sent: %02d:%02d:%02d", hours, minutes, seconds);
@@ -134,6 +134,7 @@ void sendThingspeak(float value) {
     // Update time on display
     printOled();
   }
+  
 }
 
 void updateTime() {
@@ -167,9 +168,9 @@ void printOled() {
   // Format and print voltage on display
   oled.setFont(utf8font10x16);
   oled.setRow(6);
-  oled.setCol(100);
-  oled.print(int(voltage));
-  oled.write(176);
+  oled.setCol(90);
+  oled.print(voltage,4);
+  oled.write(86);
 
 
   // Format and print last sent time on display
@@ -184,7 +185,7 @@ void updateVoltage(){
 // read the input on analog pin 0:
   int sensorValue = analogRead(A0);
   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 1.1V):
-  voltage = sensorValue * (1.1 / 1023.0);
+voltage = sensorValue * (1.1 / 1023.0);
   
   
   
